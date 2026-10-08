@@ -10,7 +10,7 @@ from openai import OpenAI, AsyncOpenAI
 from openai._types import omit
 from openai._models import construct_type_unchecked
 from openai.types.responses import Response, ToolParam
-from openai.lib._parsing._responses import parse_response
+from openai.lib._parsing._responses import parse_response, parse_text
 
 
 class Answer(BaseModel):
@@ -152,3 +152,15 @@ def test_parse_response_with_null_message_content() -> None:
     message = parsed.output[0]
     assert message.type == "message"
     assert message.content == []
+
+
+@pytest.mark.parametrize("text", [None, ""], ids=["none", "empty"])
+@pytest.mark.parametrize("phase", [None, "final_answer"], ids=["no-phase", "final-answer"])
+def test_parse_text_returns_none_for_empty_text(text: str | None, phase: str | None) -> None:
+    # Empty output text has no structured result to parse. Deserializing it used to
+    # raise TypeError (None) or a JSON decode error ("").
+    assert parse_text(text, Answer, phase=phase) is None
+
+
+def test_parse_text_still_parses_non_empty_text() -> None:
+    assert parse_text('{"answer": 4}', Answer, phase="final_answer") == Answer(answer=4)
